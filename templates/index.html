@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Movies UI (MongoDB + Neo4j)</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:24px;max-width:980px}
+    h1{margin-top:0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    label{font-weight:600;font-size:.9rem}
+    input,textarea{width:100%;padding:10px;border:1px solid #cfd4dc;border-radius:8px;margin-top:6px}
+    button{padding:10px 14px;border:0;border-radius:10px;background:#111827;color:#fff;cursor:pointer}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    pre{background:#0b1021;color:#e5f0ff;padding:12px;border-radius:10px;overflow:auto;max-height:360px}
+    .row{display:flex;gap:8px;align-items:flex-end}
+    .row > div{flex:1}
+    .muted{color:#6b7280;font-size:.9rem}
+  </style>
+</head>
+<body>
+  <h1>🎬 Movies UI</h1>
+  <p class="muted">Backed by your FastAPI + MongoDB + Neo4j endpoints.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>List all movies (Mongo)</h3>
+      <button onclick="listMovies()">Load</button>
+      <pre id="out_all"></pre>
+    </div>
+
+    <div class="card">
+      <h3>Find movie(s) by title or actor (Mongo)</h3>
+      <div class="row">
+        <div>
+          <label>Title</label>
+          <input id="q_title" placeholder="e.g., Inception">
+        </div>
+        <div>
+          <label>Actor</label>
+          <input id="q_actor" placeholder="e.g., Leonardo">
+        </div>
+        <button onclick="searchMovie()">Search</button>
+      </div>
+      <pre id="out_search"></pre>
+    </div>
+
+    <div class="card">
+      <h3>Update movie (Mongo)</h3>
+      <div class="row">
+        <div>
+          <label>Movie title</label>
+          <input id="u_title" placeholder="Inception">
+        </div>
+        <div>
+          <label>Year</label>
+          <input id="u_year" type="number" placeholder="2010">
+        </div>
+      </div>
+      <label>Genres (comma-separated)</label>
+      <input id="u_genres" placeholder="Sci-Fi, Thriller">
+      <label>Cast (comma-separated)</label>
+      <input id="u_cast" placeholder="Actor 1, Actor 2">
+      <button onclick="updateMovie()">Update</button>
+      <pre id="out_update"></pre>
+    </div>
+
+    <div class="card">
+      <h3>Common movies in Mongo & Neo4j</h3>
+      <button onclick="commonMovies()">Compute</button>
+      <pre id="out_common"></pre>
+    </div>
+
+    <div class="card">
+      <h3>Users who rated a movie (Neo4j)</h3>
+      <div class="row">
+        <div>
+          <label>Movie title</label>
+          <input id="r_title" placeholder="Inception">
+        </div>
+        <button onclick="whoRated()">Get users</button>
+      </div>
+      <pre id="out_rated"></pre>
+    </div>
+
+    <div class="card">
+      <h3>User profile (Neo4j)</h3>
+      <div class="row">
+        <div>
+          <label>User name</label>
+          <input id="u_name" placeholder="Alice">
+        </div>
+        <button onclick="userProfile()">Get profile</button>
+      </div>
+      <pre id="out_profile"></pre>
+    </div>
+  </div>
+
+<script>
+const api = (p, opt) => fetch(p, opt).then(async r=>{
+  const text = await r.text();
+  let data; try{ data = JSON.parse(text);} catch{ data = text; }
+  if(!r.ok) throw data;
+  return data;
+}).catch(e=>{ throw e; });
+
+const fmt = x => JSON.stringify(x, null, 2);
+
+async function listMovies(){
+  try{ out_all.textContent = fmt(await api('/movies')); }
+  catch(e){ out_all.textContent = fmt(e); }
+}
+
+async function searchMovie(){
+  const t = document.getElementById('q_title').value.trim();
+  const a = document.getElementById('q_actor').value.trim();
+  const qs = t ? `?title=${encodeURIComponent(t)}` : a ? `?actor=${encodeURIComponent(a)}` : '';
+  try{ out_search.textContent = fmt(await api('/movies/search'+qs)); }
+  catch(e){ out_search.textContent = fmt(e); }
+}
+
+async function updateMovie(){
+  const title = document.getElementById('u_title').value.trim();
+  const year  = document.getElementById('u_year').value.trim();
+  const genres= document.getElementById('u_genres').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const cast  = document.getElementById('u_cast').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const payload = {};
+  if(year) payload.year = Number(year);
+  if(genres.length) payload.genres = genres;
+  if(cast.length) payload.cast = cast;
+
+  try{
+    out_update.textContent = fmt(await api(`/movies/${encodeURIComponent(title)}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+    }));
+  } catch(e){ out_update.textContent = fmt(e); }
+}
+
+async function commonMovies(){
+  try{ out_common.textContent = fmt(await api('/stats/common-movies')); }
+  catch(e){ out_common.textContent = fmt(e); }
+}
+
+async function whoRated(){
+  const t = document.getElementById('r_title').value.trim();
+  try{ out_rated.textContent = fmt(await api(`/ratings/movie/${encodeURIComponent(t)}/users`)); }
+  catch(e){ out_rated.textContent = fmt(e); }
+}
+
+async function userProfile(){
+  const n = document.getElementById('u_name').value.trim();
+  try{ out_profile.textContent = fmt(await api(`/users/${encodeURIComponent(n)}/ratings`)); }
+  catch(e){ out_profile.textContent = fmt(e); }
+}
+</script>
+</body>
+</html>
