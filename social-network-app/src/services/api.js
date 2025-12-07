@@ -125,6 +125,16 @@ class ApiService {
     return response.data;
   }
 
+  async addDislike(postId) {
+    const response = await this.api.post(`/posts/${postId}/dislike`);
+    return response.data;
+  }
+
+  async removeDislike(postId) {
+    const response = await this.api.delete(`/posts/${postId}/dislike`);
+    return response.data;
+  }
+
   // Comments
   async getComments(postId) {
     const response = await this.api.get(`/comments/${postId}`);
@@ -157,6 +167,11 @@ class ApiService {
 
   async deleteComment(commentId) {
     const response = await this.api.delete(`/comments/${commentId}`);
+    return response.data;
+  }
+
+  async updateComment(commentId, content) {
+    const response = await this.api.put(`/comments/${commentId}`, { content });
     return response.data;
   }
 

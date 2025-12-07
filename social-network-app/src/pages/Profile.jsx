@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,8 +17,9 @@ import { UserPlus, UserMinus, Mail, Calendar, MapPin, Link as LinkIcon, Users, N
 
 export default function Profile() {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
-  const { currentUser: profileUser, setCurrentUser, followUser, unfollowUser } = useUserStore();
+  const { currentUser: profileUser, setCurrentUser, followUser, unfollowUser, userFollowing, fetchUserFollowing, loadMoreFollowing } = useUserStore();
   const { showToast } = useUiStore();
   const [isFollowing, setIsFollowing] = useState(false);
   const [userPosts, setUserPosts] = useState([]);
@@ -49,6 +50,9 @@ export default function Profile() {
       setFollowers(followersResponse.followers);
       setMutualFollowers(mutualFollowersResponse.mutualFollowers);
       setNetworkGraph(networkGraphResponse.network);
+      
+      // Load user's following
+      await fetchUserFollowing(userId);
     } catch {
       showToast('Failed to load user profile', 'error');
     } finally {
@@ -72,6 +76,10 @@ export default function Profile() {
     } catch {
       showToast('Failed to update follow status', 'error');
     }
+  };
+
+  const handleFollowingClick = (followingUserId) => {
+    navigate(`/profile/${followingUserId}`);
   };
 
   if (isLoading) {
@@ -182,12 +190,16 @@ export default function Profile() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="posts" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="posts">Posts</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
               <TabsTrigger value="followers">
                 <Users className="h-4 w-4 mr-1" />
                 Followers
+              </TabsTrigger>
+              <TabsTrigger value="following">
+                <Users className="h-4 w-4 mr-1" />
+                Following
               </TabsTrigger>
               <TabsTrigger value="mutual">
                 <Users className="h-4 w-4 mr-1" />
@@ -212,6 +224,43 @@ export default function Profile() {
                 ))
               ) : (
                 <p className="text-gray-500 text-center py-8">No posts yet</p>
+              )}
+            </TabsContent>
+            <TabsContent value="following" className="mt-4">
+              {userFollowing.length > 0 ? (
+                <div className="space-y-3">
+                  {userFollowing.map((following) => (
+                    <div 
+                      key={following._id} 
+                      className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleFollowingClick(following._id)}
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={following.avatar} alt={following.name} />
+                        <AvatarFallback>{following.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium">{following.name}</p>
+                        <p className="text-sm text-gray-500">@{following.username}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Load more button if there are more pages */}
+                  {userFollowing.length > 0 && (
+                    <div className="text-center pt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => loadMoreFollowing(userId)}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? 'Loading...' : 'Load More'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">Not following anyone yet</p>
               )}
             </TabsContent>
             <TabsContent value="media" className="mt-4">

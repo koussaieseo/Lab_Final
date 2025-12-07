@@ -32,7 +32,17 @@ export default function NetworkGraph({ userId, onUserClick, className = '' }) {
     try {
       setIsLoading(true);
       const response = await api.getNetworkGraph(userId);
-      setNetworkData(response.network);
+      // Transform backend edges to component connections
+      const transformedConnections = response.edges.map(edge => ({
+        from: edge.source,
+        to: edge.target,
+        strength: 0.5, // Default strength value since backend doesn't provide it
+        type: edge.type
+      }));
+      setNetworkData({
+        ...response,
+        connections: transformedConnections
+      });
     } catch (error) {
       showToast('Failed to load network graph', 'error');
     } finally {
