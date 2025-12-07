@@ -16,13 +16,15 @@ router.get('/search', authMiddleware, validateQuery(validationSchemas.search), a
     let query = {};
     
     if (type === 'users' || type === 'all') {
-      query = {
-        $or: [
-          { name: { $regex: q, $options: 'i' } },
-          { username: { $regex: q, $options: 'i' } },
-          { email: { $regex: q, $options: 'i' } }
-        ]
-      };
+      if (q && q.trim() !== '') {
+        query = {
+          $or: [
+            { name: { $regex: q, $options: 'i' } },
+            { username: { $regex: q, $options: 'i' } },
+            { email: { $regex: q, $options: 'i' } }
+          ]
+        };
+      }
     }
 
     const users = await User.find(query)
@@ -33,8 +35,27 @@ router.get('/search', authMiddleware, validateQuery(validationSchemas.search), a
 
     const total = await User.countDocuments(query);
 
+    // Get following status for each user if Neo4j is available
+    let usersWithFollowingStatus = users.map(user => user.toObject());
+    
+    if (neo4jService.driver) {
+      usersWithFollowingStatus = await Promise.all(
+        users.map(async (user) => {
+          const userObj = user.toObject();
+          
+          // Check if current user follows this user
+          const isFollowing = await neo4jService.isFollowing(req.user._id, user._id);
+          
+          return {
+            ...userObj,
+            isFollowing
+          };
+        })
+      );
+    }
+
     res.json({
-      users: users.map(user => user.toObject()),
+      users: usersWithFollowingStatus,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

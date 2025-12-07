@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { Notification, User } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 const { validationSchemas, validateQuery } = require('../middleware/validation');
@@ -27,7 +28,7 @@ router.get('/', authMiddleware, validateQuery(validationSchemas.pagination), asy
 
     res.json({
       notifications: notifications.map(notification => ({
-        id: notification._id,
+        _id: notification._id,
         type: notification.type,
         message: notification.message,
         sender: notification.sender,
@@ -118,6 +119,16 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
+
+    // Validate that id is provided and is a valid ObjectId
+    if (!id || id === 'undefined') {
+      return res.status(400).json({ message: 'Invalid notification ID' });
+    }
+
+    // Check if id is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid notification ID format' });
+    }
 
     const notification = await Notification.findOne({ 
       _id: id, 

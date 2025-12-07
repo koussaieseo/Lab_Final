@@ -14,6 +14,9 @@
     "seed:neo4j-reset": "node scripts/seedNeo4jGraph.js --reset",
     "seed:demo": "node scripts/seedDatabase.js --users=10 --posts=20",
     "seed:large": "node scripts/seedDatabase.js --users=100 --posts=200",
+    "seed:rich": "node scripts/seedRichData.js",
+    "seed:rich-reset": "node scripts/seedRichData.js --reset",
+    "seed:rich-large": "node scripts/seedRichData.js --users=50 --posts=200 --relationships=500",
     "init": "node scripts/initDatabase.js",
     "init:force": "node scripts/initDatabase.js --force"
   },

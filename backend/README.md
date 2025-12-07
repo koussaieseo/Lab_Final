@@ -24,6 +24,14 @@
 
 This is the backend API for a social network application built with Node.js, Express, MongoDB, and Neo4j. The API provides comprehensive functionality for user management, posts, comments, relationships, media uploads, notifications, and recommendations.
 
+### API Summary
+- **Total Endpoints**: 53+ endpoints
+- **Authentication**: JWT-based authentication
+- **Database**: MongoDB for document storage, Neo4j for graph relationships
+- **File Upload**: Support for images and videos with multer
+- **Rate Limiting**: Built-in rate limiting for API protection
+- **Validation**: Request validation with Joi schemas
+
 ## Base URL
 
 ```
@@ -223,6 +231,35 @@ PUT /api/auth/profile
     "bio": "Updated bio information",
     "avatar": "https://example.com/new-avatar.jpg"
   }
+}
+```
+
+#### Logout
+```http
+POST /api/auth/logout
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Logout successful"
+}
+```
+
+#### Refresh Token
+```http
+POST /api/auth/refresh
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Token refreshed successfully",
+  "token": "new_jwt_token_here"
 }
 ```
 
@@ -757,6 +794,49 @@ DELETE /api/comments/:id/like
 }
 ```
 
+#### Get Comment Replies
+```http
+GET /api/comments/:commentId/replies
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "replies": [
+    {
+      "_id": "reply_id",
+      "content": "This is a reply to the comment",
+      "author": {
+        "_id": "author_id",
+        "name": "Bob Johnson",
+        "username": "bobjohnson",
+        "avatar": "avatar_url"
+      },
+      "likeCount": 2,
+      "isLiked": false,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+#### Delete Comment
+```http
+DELETE /api/comments/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Comment deleted successfully"
+}
+```
+
 ### Relationship Routes
 
 #### Follow User
@@ -800,6 +880,60 @@ GET /api/relationships/status/:userId
   "isFollowing": true,
   "isFollowedBy": false,
   "isMutual": false
+}
+```
+
+#### Get Mutual Followers
+```http
+GET /api/relationships/mutual/:userId
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "mutualFollowers": [
+    {
+      "_id": "user_id",
+      "name": "Jane Smith",
+      "username": "janesmith",
+      "avatar": "avatar_url"
+    }
+  ],
+  "count": 5
+}
+```
+
+#### Get Network Graph Data
+```http
+GET /api/relationships/network/:userId
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "nodes": [
+    {
+      "id": "user_id",
+      "name": "John Doe",
+      "username": "johndoe",
+      "type": "user"
+    }
+  ],
+  "edges": [
+    {
+      "source": "user1_id",
+      "target": "user2_id",
+      "type": "follows"
+    }
+  ],
+  "networkStats": {
+    "totalNodes": 150,
+    "totalEdges": 300
+  }
 }
 ```
 
@@ -883,6 +1017,77 @@ GET /api/recommendations/connection-path/:targetUserId
 }
 ```
 
+#### Get Mutual Connections
+```http
+GET /api/recommendations/mutual-connections/:userId
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "mutualConnections": [
+    {
+      "_id": "user_id",
+      "name": "Alice Brown",
+      "username": "alicebrown",
+      "avatar": "avatar_url",
+      "bio": "Software developer"
+    }
+  ],
+  "total": 3
+}
+```
+
+#### Get Network Statistics
+```http
+GET /api/recommendations/network-stats
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "networkStats": {
+    "totalConnections": 150,
+    "networkReach": 1250,
+    "networkDensity": 0.15,
+    "avgPathLength": 3.2
+  }
+}
+```
+
+#### Get Suggested Posts
+```http
+GET /api/recommendations/suggested-posts
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "posts": [
+    {
+      "_id": "post_id",
+      "content": "Suggested post content",
+      "author": {
+        "_id": "author_id",
+        "name": "Jane Smith",
+        "username": "janesmith",
+        "avatar": "avatar_url"
+      },
+      "likeCount": 45,
+      "isLiked": false,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "total": 10
+}
+```
+
 ### Media Routes
 
 #### Upload Media
@@ -925,6 +1130,71 @@ GET /api/media/:filename
 ```
 
 **Response:** File stream (image or video)
+
+#### Get User's Media
+```http
+GET /api/media/user/:userId
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "media": [
+    {
+      "id": "media_id",
+      "filename": "user_id-1234567890.jpg",
+      "url": "/api/media/user_id-1234567890.jpg",
+      "type": "image",
+      "altText": "Description of the image",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "total": 5
+}
+```
+
+#### Update Media
+```http
+PUT /api/media/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "altText": "Updated description",
+  "postId": "post_id"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Media updated successfully",
+  "media": {
+    "id": "media_id",
+    "altText": "Updated description",
+    "postId": "post_id"
+  }
+}
+```
+
+#### Delete Media
+```http
+DELETE /api/media/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Media deleted successfully"
+}
+```
 
 ### Notification Routes
 
@@ -1005,6 +1275,109 @@ PATCH /api/notifications/mark-all-read
 {
   "message": "All notifications marked as read",
   "updatedCount": 5
+}
+```
+
+#### Delete Notification
+```http
+DELETE /api/notifications/:id
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Notification deleted successfully"
+}
+```
+
+#### Clear Read Notifications
+```http
+DELETE /api/notifications/clear-read
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "message": "Read notifications cleared successfully",
+  "deletedCount": 10
+}
+```
+
+#### Get Notification Preferences
+```http
+GET /api/notifications/preferences
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response:**
+```json
+{
+  "preferences": {
+    "followNotifications": true,
+    "postNotifications": true,
+    "commentNotifications": true,
+    "likeNotifications": false,
+    "emailNotifications": true
+  }
+}
+```
+
+#### Update Notification Preferences
+```http
+PUT /api/notifications/preferences
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "followNotifications": true,
+  "postNotifications": false,
+  "commentNotifications": true,
+  "likeNotifications": true,
+  "emailNotifications": false
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Notification preferences updated successfully",
+  "preferences": {
+    "followNotifications": true,
+    "postNotifications": false,
+    "commentNotifications": true,
+    "likeNotifications": true,
+    "emailNotifications": false
+  }
+}
+```
+
+#### Create Test Notification (Development)
+```http
+POST /api/notifications/test
+```
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "type": "follow",
+  "message": "Test notification message"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Test notification created successfully"
 }
 ```
 
@@ -1290,13 +1663,14 @@ class SocialNetworkAPI {
 - `204 No Content` - Request successful, no content to return
 
 ### 4xx Client Errors
-- `400 Bad Request` - Invalid request data
+- `400 Bad Request` - Invalid request data or malformed JSON
 - `401 Unauthorized` - Authentication required or token expired
 - `403 Forbidden` - Insufficient permissions
 - `404 Not Found` - Resource not found
-- `409 Conflict` - Resource conflict (e.g., duplicate email)
+- `409 Conflict` - Resource conflict (e.g., duplicate email, already following)
 - `422 Unprocessable Entity` - Validation error
 - `429 Too Many Requests` - Rate limit exceeded
+- `415 Unsupported Media Type` - Invalid file type for uploads
 
 ### 5xx Server Errors
 - `500 Internal Server Error` - Server error occurred

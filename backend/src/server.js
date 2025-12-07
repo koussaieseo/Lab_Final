@@ -7,7 +7,6 @@ require('dotenv').config();
 
 const mongoDBService = require('./services/mongodbService');
 const neo4jService = require('./services/neo4jService');
-const { initializeDatabasesForServer } = require('../scripts/initDatabase');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -17,6 +16,7 @@ const relationshipRoutes = require('./routes/relationships');
 const recommendationRoutes = require('./routes/recommendations');
 const mediaRoutes = require('./routes/media');
 const notificationRoutes = require('./routes/notifications');
+const { seedAll } = require('../scripts/seedAll');
 
 const app = express();
 
@@ -34,7 +34,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
-    : ['http://localhost:3000', 'http://localhost:5173'],
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
   credentials: true
 }));
 app.use(limiter);
@@ -115,11 +115,11 @@ app.use('*', (req, res) => {
 
 // Initialize databases and start server
 async function startServer() {
-  try {
+  
     // Initialize and seed databases if needed
     console.log('🚀 Initializing databases...');
     try {
-      await initializeDatabasesForServer();
+      await seedAll();
     } catch (initError) {
       console.warn('⚠️  Database initialization failed, but continuing with server startup:', initError.message);
       console.log('💡 You can manually seed the database later using: npm run seed:demo');
@@ -139,10 +139,7 @@ async function startServer() {
       console.log(`Health check: http://localhost:${PORT}/health`);
     });
     
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
+ 
 }
 
 // Graceful shutdown

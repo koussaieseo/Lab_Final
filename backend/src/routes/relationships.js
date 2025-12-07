@@ -1,4 +1,5 @@
 const express = require('express');
+const neo4j = require('neo4j-driver');
 const neo4jService = require('../services/neo4jService');
 const { authMiddleware } = require('../middleware/auth');
 const { Notification } = require('../models');
@@ -49,7 +50,7 @@ router.post('/follow/:userId', authMiddleware, async (req, res) => {
 });
 
 // Unfollow a user
-router.delete('/follow/:userId', authMiddleware, async (req, res) => {
+router.post('/unfollow/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params;
     const currentUserId = req.user._id;
@@ -146,7 +147,7 @@ router.get('/network/:userId', authMiddleware, async (req, res) => {
       MATCH (user)-[:FOLLOWS*1..${depth}]-(connected:User)
       WHERE user <> connected
       WITH user, connected, shortestPath((user)-[:FOLLOWS*1..${depth}]-(connected)) as path
-n      RETURN 
+      RETURN 
         user as centralUser,
         connected as connectedUser,
         length(path) as distance

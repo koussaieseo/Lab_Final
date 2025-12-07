@@ -207,19 +207,20 @@ class Neo4jService {
   async getPeopleYouMayKnow(userId, limit = 10) {
     const session = this.getSession();
     try {
+      // Find users who are followed by people you follow (friends of friends)
+      // but you don't follow them yet
       const result = await session.run(`
-        MATCH (user:User {id: $userId})
-        MATCH (user)-[:FOLLOWS*1..3]-(potentialFriend:User)
+        MATCH (user:User {id: $userId})-[:FOLLOWS]->(friend:User)-[:FOLLOWS]->(potentialFriend:User)
         WHERE NOT (user)-[:FOLLOWS]->(potentialFriend)
         AND user <> potentialFriend
         WITH potentialFriend, COUNT(*) as mutualConnections
         ORDER BY mutualConnections DESC
         LIMIT $limit
-        RETURN potentialFriend, mutualConnections
+        RETURN potentialFriend.id as userId, mutualConnections
       `, { userId, limit: neo4j.int(limit) });
       
       return result.records.map(record => ({
-        user: record.get('potentialFriend').properties,
+        userId: record.get('userId'),
         mutualConnections: record.get('mutualConnections').toNumber()
       }));
     } finally {
@@ -303,6 +304,154 @@ class Neo4jService {
     } catch (error) {
       console.error('Error in getTrendingUsers:', error);
       return [];
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Create post node in Neo4j
+  async createPost(postId, userId, hashtags = []) {
+    const session = this.getSession();
+    try {
+      const result = await session.run(`
+        MATCH (u:User {id: $userId})
+        CREATE (p:Post {
+          id: $postId,
+          createdAt: datetime(),
+          hashtags: $hashtags
+        })
+        CREATE (u)-[:CREATED]->(p)
+        RETURN p
+      `, { postId, userId, hashtags });
+      
+      return result.records.length > 0;
+    } catch (error) {
+      console.error('Neo4j createPost error:', error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Create custom relationship between users
+  async createRelationship(fromUserId, toUserId, relationshipType, properties = {}) {
+    const session = this.getSession();
+    try {
+      const result = await session.run(`
+        MATCH (u1:User {id: $fromUserId})
+        MATCH (u2:User {id: $toUserId})
+        CREATE (u1)-[r:${relationshipType} {
+          createdAt: datetime(),
+          strength: $strength
+        }]->(u2)
+        RETURN r
+      `, { fromUserId, toUserId, strength: properties.strength || 1 });
+      
+      return result.records.length > 0;
+    } catch (error) {
+      console.error('Neo4j createRelationship error:', error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Add user to community
+  async addUserToCommunity(userId, communityName, properties = {}) {
+    const session = this.getSession();
+    try {
+      const result = await session.run(`
+        MATCH (u:User {id: $userId})
+        MERGE (c:Community {name: $communityName})
+        CREATE (u)-[r:MEMBER_OF {
+          role: $role,
+          joinedAt: datetime()
+        }]->(c)
+        RETURN r
+      `, { userId, communityName, role: properties.role || 'member' });
+      
+      return result.records.length > 0;
+    } catch (error) {
+      console.error('Neo4j addUserToCommunity error:', error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Like a post
+  async likePost(userId, postId) {
+    const session = this.getSession();
+    try {
+      const result = await session.run(`
+        MATCH (u:User {id: $userId})
+        MATCH (p:Post {id: $postId})
+        MERGE (u)-[r:LIKED {
+          createdAt: datetime(),
+          reaction: 'like'
+        }]->(p)
+        RETURN r
+      `, { userId, postId });
+      
+      return result.records.length > 0;
+    } catch (error) {
+      console.error('Neo4j likePost error:', error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Get mutual connections
+  async getMutualConnections(userId1, userId2) {
+    const session = this.getSession();
+    try {
+      const result = await session.run(`
+        MATCH (u1:User {id: $userId1})-[:FOLLOWS]->(mutual:User)<-[:FOLLOWS]-(u2:User {id: $userId2})
+        RETURN mutual
+        LIMIT 50
+      `, { userId1, userId2 });
+      
+      return result.records.map(record => {
+        const user = record.get('mutual').properties;
+        return {
+          _id: user.id,
+          name: user.name,
+          username: user.username,
+          avatar: user.avatar
+        };
+      });
+    } catch (error) {
+      console.error('Neo4j getMutualConnections error:', error);
+      throw error;
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Get connection path between users
+  async getConnectionPath(userId1, userId2) {
+    const session = this.getSession();
+    try {
+      const result = await session.run(`
+        MATCH path = shortestPath((u1:User {id: $userId1})-[:FOLLOWS*1..6]-(u2:User {id: $userId2}))
+        RETURN [node in nodes(path) | node] as pathNodes
+      `, { userId1, userId2 });
+      
+      if (result.records.length === 0) {
+        return [];
+      }
+      
+      const pathNodes = result.records[0].get('pathNodes');
+      return pathNodes.map(node => ({
+        _id: node.properties.id,
+        name: node.properties.name,
+        username: node.properties.username,
+        avatar: node.properties.avatar
+      }));
+    } catch (error) {
+      console.error('Neo4j getConnectionPath error:', error);
+      throw error;
     } finally {
       await session.close();
     }

@@ -57,7 +57,7 @@ const validationSchemas = {
 
   // Search validation
   search: Joi.object({
-    q: Joi.string().min(1).max(100).required(),
+    q: Joi.string().allow('').max(100).optional(),
     type: Joi.string().valid('users', 'posts', 'all').default('all'),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(50).default(10)

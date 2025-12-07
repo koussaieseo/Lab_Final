@@ -11,7 +11,45 @@ router.get('/people-you-may-know', authMiddleware, async (req, res) => {
     const currentUserId = req.user._id;
     const { limit = 10 } = req.query;
 
-    const recommendations = await neo4jService.getPeopleYouMayKnow(currentUserId, parseInt(limit));
+    let recommendations = [];
+    
+    // Try Neo4j first for graph-based recommendations
+    if (neo4jService.driver) {
+      try {
+        const neo4jRecommendations = await neo4jService.getPeopleYouMayKnow(currentUserId, parseInt(limit));
+        recommendations = neo4jRecommendations.map(rec => ({
+          userId: rec.userId,
+          mutualConnections: rec.mutualConnections
+        }));
+      } catch (neo4jError) {
+        console.log('Neo4j recommendation failed, falling back to MongoDB:', neo4jError.message);
+      }
+    }
+    
+    // Fallback to MongoDB-based recommendations if Neo4j fails or returns empty
+    if (recommendations.length === 0) {
+      // Get users with similar interests or high follower counts that the current user doesn't follow
+      const currentUser = await User.findById(currentUserId);
+      
+      // Find users with similar interests
+      const similarUsers = await User.find({
+        _id: { 
+          $ne: currentUserId, // Not the current user
+          $nin: [currentUserId] // Assume we're not tracking follows in MongoDB for now
+        },
+        interests: { $in: currentUser.interests || [] },
+        isActive: true
+      })
+      .select('name username avatar bio followersCount')
+      .sort({ followersCount: -1 })
+      .limit(parseInt(limit))
+      .lean();
+      
+      recommendations = similarUsers.map(user => ({
+        userId: user._id,
+        mutualConnections: user.followersCount || 0
+      }));
+    }
     
     // Get user details for recommendations
     const userIds = recommendations.map(rec => rec.userId);

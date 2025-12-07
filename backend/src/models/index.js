@@ -52,7 +52,29 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  followingCount: {
+    type: Number,
+    default: 0
+  },
+  followersCount: {
+    type: Number,
+    default: 0
+  },
+  location: {
+    type: String,
+    maxlength: 100,
+    default: ''
+  },
+  website: {
+    type: String,
+    maxlength: 200,
+    default: ''
+  },
+  interests: [{
+    type: String,
+    maxlength: 50
+  }]
 }, {
   timestamps: true
 });
