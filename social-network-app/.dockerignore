@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+coverage
+.DS_Store
+*.log
+dist
+build
+.vite
+.cache
+eslint.config.js
+postcss.config.js
+tailwind.config.js
+vite.config.js
